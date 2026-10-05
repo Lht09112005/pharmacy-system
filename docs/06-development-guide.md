@@ -1,17 +1,14 @@
-# 06 — Hướng dẫn chuẩn bị và phát triển
+# 06 — Hướng dẫn phát triển
 
 ## Yêu cầu môi trường
 
-- Node.js `^22.22.3` hoặc `>=24.15.0`.
-- npm 11.9.0 hoặc tương thích với lockfile.
-- Docker Desktop/Engine và Docker Compose để chạy PostgreSQL cục bộ, hoặc PostgreSQL tương đương đã có sẵn.
-- Các phiên bản framework/ORM thực tế được ghi trong README và D20.
+- Node.js `^22.22.3` hoặc `>=24.15.0`; npm `>=11.9.0`.
+- PostgreSQL 17 để chạy migration, seed và e2e; Docker Compose hiện cung cấp PostgreSQL local.
+- Hai ứng dụng có `package-lock.json` riêng; dùng `npm ci` từ đúng thư mục ứng dụng.
 
-Máy khởi tạo dùng Node.js 24.14.0 và npm 11.9.0. Các kiểm tra build đã thành công nhưng dependency của Nest CLI cảnh báo Node 24.14.0 thấp hơn 24.15.0; không dùng cảnh báo này làm chuẩn cho máy thành viên khác.
+## Cấu hình local
 
-File `.nvmrc` cố định phiên bản khuyến nghị 22.22.3 cho công cụ quản lý Node hỗ trợ NVM. GitHub Actions cũng đọc file này để dùng cùng phiên bản.
-
-## Chuẩn bị biến môi trường
+Tạo file nếu chưa có:
 
 ```powershell
 Copy-Item .env.example .env
@@ -19,107 +16,103 @@ Copy-Item backend/.env.example backend/.env
 Copy-Item frontend/.env.example frontend/.env.local
 ```
 
-| File | Biến |
-|---|---|
-| `.env` | `POSTGRES_PORT`, `POSTGRES_PASSWORD` cho Compose |
-| `backend/.env` | `DATABASE_URL`, `PORT`, `FRONTEND_ORIGIN`, `APP_TIMEZONE` |
-| `frontend/.env.local` | `NEXT_PUBLIC_API_BASE_URL` |
+- Root `.env`: cổng và mật khẩu PostgreSQL Compose.
+- `backend/.env`: `DATABASE_URL`, `NODE_ENV`, `PORT`, `FRONTEND_ORIGIN`, `APP_TIMEZONE`; đặt `SEED_DEMO_PASSWORD` riêng tại local nếu chạy seed.
+- `TEST_DATABASE_URL` chỉ dành cho migration/e2e test, không cần để API chạy.
+- `frontend/.env.local`: `NEXT_PUBLIC_API_BASE_URL`; không để thông tin bí mật trong biến `NEXT_PUBLIC_*`.
+- `NODE_ENV` nhận `development`, `test`, `production`, mặc định `development`. API không yêu cầu seed password.
+- `FRONTEND_ORIGIN` phải là một origin HTTP/HTTPS hợp lệ, gồm scheme/host/port và không có path. CORS dùng đúng origin này cùng credentials.
 
-`NEXT_PUBLIC_*` là biến công khai phía trình duyệt, không được chứa mật khẩu/token. Không commit các file môi trường thật.
+Giá trị `SEED_DEMO_PASSWORD` không được ghi trong repo/tài liệu/log. Seed từ chối production, dùng cùng helper scrypt với auth và không đổi dữ liệu tài khoản demo đã có.
 
-## PostgreSQL
-
-Docker daemon phải đang chạy:
+## PostgreSQL và migration
 
 ```powershell
 docker compose up -d postgres
 docker compose ps
 docker compose exec -T postgres pg_isready -U pharmacy -d pharmacy
-docker compose exec -T postgres psql -U pharmacy -d pharmacy -tAc "SELECT 1"
 ```
 
-Compose dùng image `postgres:17-alpine` và volume được đặt tên theo Compose project. Dừng container bằng `docker compose stop postgres`; không dùng `docker compose down -v` hoặc xóa volume để xử lý lỗi.
-
-Các lệnh trên đã chạy thành công trên máy khởi tạo: container `pharmacy-postgres` đạt trạng thái `healthy`, `pg_isready` chấp nhận kết nối và truy vấn `SELECT 1` trả kết quả thành công. Không tạo schema hoặc migration nghiệp vụ trong lần kiểm tra này.
-
-## Backend
+Không xóa volume hoặc reset database để xử lý lỗi. Migration đầu nằm ở `backend/prisma/migrations/20261005000000_initial/`. Với DB local đã cấu hình:
 
 ```powershell
 Set-Location backend
-npm install
+npm ci
 npm run prisma:generate
 npm run prisma:validate
+npm run db:migrate:deploy
+npm run db:seed
+```
+
+Tạo migration mới trong môi trường developer bằng `npx prisma migrate dev --name <ten_migration>`; review SQL trước khi chia sẻ. Không sửa/xóa migration đã áp dụng và không dùng `prisma db push` thay migration.
+
+Seed cần `SEED_DEMO_PASSWORD` dài 8–128 ký tự trong env local/test. Các username được tạo là `manager.demo`, `warehouse.demo`, `sales.demo`. Mật khẩu là giá trị do người chạy seed tự đặt.
+
+## CSDL riêng cho e2e
+
+Tạo database PostgreSQL riêng, ví dụ `pharmacy_test`, bằng công cụ PostgreSQL của bạn. Không trỏ biến test sang database phát triển. PowerShell:
+
+```powershell
+Set-Location backend
+$env:TEST_DATABASE_URL = "postgresql://<user>:<password>@localhost:5432/pharmacy_test?schema=public"
+npm run db:test:migrate
+npm run test:e2e
+```
+
+Các script bắt buộc `TEST_DATABASE_URL`, xác nhận protocol PostgreSQL và tên database có `test` hoặc `ci`, rồi mới gán làm `DATABASE_URL`. Không fallback về URL phát triển, không reset/truncate DB. Fixture có username/tên riêng và cleanup theo khóa fixture. E2E auth/users dùng app bootstrap, guard và Prisma thật.
+
+GitHub Actions dùng service PostgreSQL 17/database `pharmacy_ci`, apply migration trước khi chạy test. `DATABASE_URL` và `TEST_DATABASE_URL` cùng trỏ vào database CI dùng một lần.
+
+## Chạy ứng dụng
+
+```powershell
+Set-Location backend
 npm run start:dev
 ```
 
-Lần xác minh kết nối thực tế đã build rồi chạy backend bằng:
-
-```powershell
-npm run build
-npm run start:prod
-```
-
-- Liveness: `GET http://localhost:3001/api/v1/health` — không phụ thuộc CSDL.
-- Readiness: `GET http://localhost:3001/api/v1/health/ready` — chạy `SELECT 1`, trả 503 theo định dạng lỗi chung nếu PostgreSQL chưa sẵn sàng.
-- `prisma/schema.prisma` hiện chưa có model nghiệp vụ và chưa có migration.
-- Các module auth, users, roles, medicines, suppliers, inventory, goods-receipts, stocktakes, customers, prescriptions, sales, reports mới chỉ là NestJS module rỗng.
-
-## Frontend
+Terminal khác:
 
 ```powershell
 Set-Location frontend
-npm install
+npm ci
 npm run dev
 ```
 
-Frontend dùng App Router, CSS thuần, layout/menu chung và gọi liveness API qua `NEXT_PUBLIC_API_BASE_URL`. Các trang nghiệp vụ đều ghi “Đang phát triển” và chưa có API nghiệp vụ.
+Frontend mặc định ở `http://localhost:3000`; backend ở `http://localhost:3001`. Liveness là `GET /api/v1/health` (không cần DB/session); readiness `GET /api/v1/health/ready` kiểm tra CSDL và trả 503 theo error contract nếu chưa sẵn sàng.
 
-Nếu cổng 3000 đã bị tiến trình khác chiếm, dùng cổng thay thế và cập nhật origin local tương ứng trước khi khởi động backend:
+Nếu dùng cổng frontend khác, cập nhật `FRONTEND_ORIGIN` trong `backend/.env` cho khớp. Trình duyệt tự gửi Origin cho request ghi; curl/script phải gửi Origin khớp hoặc Referer cùng origin. CORS không thay việc backend xác thực Origin/Referer.
 
-```powershell
-# backend/.env
-FRONTEND_ORIGIN=http://localhost:3002
+Cookie production có cờ Secure; môi trường triển khai cần HTTPS cùng site. Cross-site production chưa thuộc phạm vi.
 
-Set-Location frontend
-npm run dev -- --port 3002
-```
-
-Đây chỉ là cấu hình local; `.env.example` vẫn dùng cổng chuẩn 3000.
-
-## Kiểm tra
-
-Workflow `.github/workflows/ci.yml` tự động chạy các kiểm tra dưới đây khi có Pull Request hoặc push vào `main`/`develop`.
-
-Backend:
+## Lệnh kiểm tra
 
 ```powershell
+Set-Location backend
+npm run prisma:generate
+npm run prisma:validate
+npm run db:migrate:deploy
+npm run db:seed
 npm run typecheck
 npm run lint
 npm test
+npm run db:test:migrate
 npm run test:e2e
 npm run build
-npm audit
-```
 
-Frontend:
-
-```powershell
+Set-Location ../frontend
 npm run typecheck
 npm run lint
 npm run build
-npm audit
 ```
 
-Kết quả trên máy khởi tạo:
+Frontend typecheck gọi `next typegen` trước TypeScript; không phụ thuộc build trước đó. Auth/staff e2e cần PostgreSQL riêng. Browser smoke cần runtime trình duyệt, không được coi HTTP 200 là kiểm tra đầy đủ giao diện.
 
-- Backend typecheck, lint, build và e2e health: đạt.
-- Frontend typecheck, lint, build; trang tổng quan và trang thuốc trả HTTP 200: đạt.
-- Prisma generate/validate: đạt với Prisma 6.12.0; schema chưa có model nên không tạo migration.
-- `npm audit`: 0 vulnerability cho cả hai ứng dụng sau khi loại dependency generator không dùng.
-- PostgreSQL qua Docker Compose: `healthy`; `pg_isready` và truy vấn `SELECT 1`: đạt.
-- Backend liveness trả HTTP 200; readiness trả HTTP 200 với trạng thái CSDL `connected`; CORS cho origin frontend local: đạt.
-- Frontend chạy ở cổng 3002 trong lần kiểm tra vì cổng 3000 đang bị một tiến trình Node ngoài phiên kiểm tra chiếm. Kiểm tra bằng Chrome headless xác nhận trang tổng quan đã hydrate và hiển thị `Đã kết nối` cùng `pharmacy-api: ok`; cấu hình mẫu vẫn dùng cổng 3000.
+## Kết quả chạy tại môi trường cập nhật ngày 05/10/2026
 
-## Ranh giới sở hữu
+- `npm ci`: thành công cho cả backend/frontend. Frontend install báo 5 cảnh báo audit high; không chạy auto-fix/nâng dependency trong phạm vi này. Backend install báo 0 vulnerability.
+- Đạt: frontend typecheck khi artifact Next cũ vắng mặt, lint/build; backend Prisma generate/validate, typecheck/lint, 8 unit tests/build; PostgreSQL migration mới và deploy lần hai không còn migration chờ.
+- PostgreSQL 17 chạy bằng Podman Compose của repo. DB test riêng `pharmacy_test` và `pharmacy_ci` đã migrate; hai lượt e2e đều đạt 3 file/11 test. Seed local chạy hai lần, từ chối production; browser smoke đã thử login/reload/logout, phân quyền trực tiếp vào `/staff`, và luồng tạo/gán/sửa/khóa nhân viên.
+- Smoke HTTP khi PostgreSQL bật: liveness 200, readiness 200. Khi DB tắt: liveness 200, readiness 503 theo error contract.
+- Kết quả remote GitHub Actions chưa được xác minh vì chưa push theo yêu cầu. Service `pharmacy-postgres` của repo hiện còn chạy; các database và việc kiểm tra chi tiết nằm trong [docs/11-person-1-handoff.md](11-person-1-handoff.md).
 
-Người 1 điều phối layout/menu, API client, cấu hình chung, Prisma schema/migrations và lockfile. Người 2 sở hữu medicines, suppliers, inventory, goods-receipts, stocktakes. Người 3 sở hữu customers, prescriptions, sales, reports. Module sales chỉ dùng giao tiếp inventory đã thống nhất; không tự cập nhật lô.
+Xem chi tiết từng bước chưa chạy và bàn giao cho Người 2/3 ở [docs/11-person-1-handoff.md](11-person-1-handoff.md).

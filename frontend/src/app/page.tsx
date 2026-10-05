@@ -6,7 +6,7 @@ export default function Home() {
       <div className="page-heading">
         <p className="eyebrow">Tổng quan</p>
         <h1>Bộ khung đã sẵn sàng</h1>
-        <p>Các module nghiệp vụ hiện chỉ có cấu trúc. Chưa có chức năng nhập kho, bán hàng, kiểm kê, đăng nhập hoặc phân quyền.</p>
+        <p>Đăng nhập, phân quyền nền và quản lý nhân viên đã sẵn sàng. Các module thuốc, nhập kho, bán hàng, kiểm kê và báo cáo vẫn đang phát triển.</p>
       </div>
       <div className="dashboard-grid">
         <article className="card"><h2>Kết nối hệ thống</h2><HealthStatus /></article>

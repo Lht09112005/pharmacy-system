@@ -18,7 +18,7 @@ Nhận và kiểm tra đơn → ghi người bệnh, người kê, ngày kê, c�
 
 ### Kiểm kê
 
-Chọn lô → ghi số hệ thống và thời điểm → đếm thực tế → ghi chênh lệch/lý do → gửi quản lý → kiểm tra lại biến động tồn → duyệt hoặc yêu cầu rà soát. Chỉ duyệt mới điều chỉnh tồn.
+Tạo phiếu nháp từ các lô đã chọn → server chụp số lượng/version/thời điểm của từng lô trước khi đếm → ghi số thực tế và lý do chênh lệch → gửi quản lý → kiểm tra lại biến động tồn → duyệt hoặc yêu cầu rà soát. Dòng mới có `actualQuantity = NULL`; khi ghi số thực tế, `0` là giá trị hợp lệ. Client không tự gửi/sửa các trường snapshot. Chỉ duyệt mới điều chỉnh tồn.
 
 ### Báo cáo và cảnh báo
 
@@ -30,7 +30,7 @@ Tồn có thể bán loại trừ lô hết hạn. Cảnh báo tồn thấp so s
 |---|---|
 | BR01 | Mỗi thuốc có thuộc tính cần đơn hay không. |
 | BR02 | Hóa đơn chứa thuốc cần đơn phải có đơn và thông tin nhân viên kiểm tra. |
-| BR03 | Một đơn được gắn tối đa một hóa đơn trong bản đầu; chưa hỗ trợ mua nhiều lần theo cùng đơn. |
+| BR03 | Một đơn gắn tối đa một hóa đơn chưa hủy. Hóa đơn nháp đã hủy giữ liên kết lịch sử và có thể được thay bằng hóa đơn mới; chưa hỗ trợ nhiều hóa đơn hoàn tất trên cùng đơn. |
 | BR04 | Thuốc có nhiều lô; từng lô có hạn và tồn riêng. |
 | BR05 | Không bán lô hết hạn hoặc vượt số lượng khả dụng. |
 | BR06 | Một dòng hóa đơn có thể xuất nhiều lô; tổng xuất lô bằng lượng bán. |
@@ -55,11 +55,19 @@ Tồn có thể bán loại trừ lô hết hạn. Cảnh báo tồn thấp so s
 - Kiểm kê: NHAP → CHO_DUYET → DA_DUYET; hoặc CHO_DUYET → KIEM_TRA_LAI → NHAP.
 - Chứng từ nháp có thể rỗng; khi hoàn tất phải có ít nhất một dòng.
 
-## Điểm phải quyết định trước khi code liên quan
+## Quy trình kiểm kê được giao Người 2 triển khai
 
-- Một đơn gắn phiếu nháp đã hủy: quy tắc cho phép tái sử dụng hay không phải chốt để khớp UNIQUE ma_don.
-- Thu tiền và thời điểm hoàn tất: chưa có mô hình thanh toán riêng; phải chốt cách xử lý khách đổi ý trước hoàn tất.
-- Hạn dùng theo ngày: chốt lô được coi hết hạn từ đầu hay cuối ngày nghiệp vụ `Asia/Ho_Chi_Minh`.
+1. `POST /stocktakes` nhận `{ "lotIds": [1, 2] }`. Server tạo phiếu nháp và lưu `systemQuantity`, `recordedVersion`, `recordedAt` cho mỗi lô trong một lần chụp; `actualQuantity` bắt đầu là `NULL`.
+2. `PATCH /stocktakes/:id` nhận các dòng `{ "itemId": 1, "actualQuantity": 89, "reason": "..." }`. Client không gửi `lotId`, `systemQuantity`, `recordedVersion` hoặc `recordedAt` để sửa snapshot.
+3. Chỉ gửi duyệt khi tất cả dòng đã có actual quantity. `0` là số đếm hợp lệ và khác `NULL` (chưa đếm).
+4. Khi duyệt, so sánh snapshot version với version hiện tại và điều chỉnh tồn trong cùng transaction. Biến động xảy ra sau snapshot, kể cả lúc đang đếm, phải chuyển yêu cầu sang kiểm tra lại.
+5. Kiểm tra lại phải tạo snapshot và lần đếm mới; không được giữ số đếm cũ rồi gắn version mới.
+
+## Các điểm còn mở trước nghiệp vụ tương ứng
+
+- Thu tiền/thời điểm hoàn tất và cách xử lý khách đổi ý vẫn để Người 3 chốt khi làm checkout.
+- Hạn dùng đầu/cuối ngày nghiệp vụ `Asia/Ho_Chi_Minh` vẫn để Người 2/3 chốt khi làm lô/tồn.
+- Quy tắc vô hiệu lần kiểm tra đơn sau khi sửa nội dung vẫn để Người 3 chốt.
 
 ## Kiểm tra chấp nhận
 

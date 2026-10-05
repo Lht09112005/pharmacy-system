@@ -6,10 +6,10 @@ Người 1 quản lý và điều phối; Người 2 phụ trách kho; Người 
 
 ### `docs/project-baseline`
 
-- [ ] Chốt phạm vi.
-- [ ] tổng hợp quy tắc.
-- [ ] tạo backlog.
-- [ ] ghi các điểm mở.
+- [x] Chốt phạm vi.
+- [x] Tổng hợp quy tắc.
+- [x] Tạo backlog.
+- [x] Ghi các điểm mở.
 
 **Phụ thuộc:** Không.
 
@@ -24,54 +24,51 @@ Người 1 quản lý và điều phối; Người 2 phụ trách kho; Người 
 
 ### `docs/api-contracts`
 
-- [ ] Quy ước API.
-- [ ] payload.
-- [ ] quyền.
-- [ ] giao tiếp sales–inventory.
+- [x] Quy ước lỗi/auth/users/roles, payload và quyền.
+- [ ] Giao tiếp nội bộ sales–inventory (Người 2 + Người 3; chưa triển khai).
 
 **Phụ thuộc:** Phạm vi.
 
 ### `feat/database-core`
 
-- [ ] Schema.
-- [ ] FK/chỉ mục.
-- [ ] migration nền.
-- [ ] dữ liệu mẫu.
+- [x] Schema Prisma cho 17 bảng nghiệp vụ và AuthSession.
+- [x] FK, chỉ mục, enum, CHECK và partial unique trong migration.
+- [x] Migration nền PostgreSQL và migration lock.
+- [x] Seed idempotent cho roles, tài khoản demo và danh mục demo.
+
+**Kiểm chứng PostgreSQL migration/seed/e2e:** [x] Đạt trên PostgreSQL 17 local; migration, seed idempotent và hai lượt e2e đã xác nhận. Chi tiết: `docs/11-person-1-handoff.md`.
 
 **Phụ thuộc:** PostgreSQL/Prisma đã chốt; schema và chiến lược migration được duyệt.
 
 ### `feat/auth-api`
 
-- [ ] Đăng nhập/đăng xuất.
-- [ ] me.
-- [ ] kiểm tra quyền.
-- [ ] khóa tài khoản.
+- [x] Đăng nhập/đăng xuất và me bằng session cookie.
+- [x] Session guard, roles guard và kiểm tra Origin/Referer.
+- [x] Khóa tài khoản/nghỉ việc thu hồi phiên.
 
 **Phụ thuộc:** Cơ chế xác thực, CSDL.
 
 ### `feat/app-shell`
 
-- [ ] Layout/menu.
-- [ ] đăng nhập.
-- [ ] API client.
-- [ ] lỗi chung.
+- [x] Layout/menu theo vai trò và bảo vệ route phía giao diện.
+- [x] Trang đăng nhập và API client xác thực.
+- [x] Hợp đồng lỗi chuẩn.
 
 **Phụ thuộc:** Hợp đồng auth.
 
 ### `feat/staff-management`
 
-- [ ] API/UI nhân viên.
-- [ ] vai trò.
-- [ ] khóa tài khoản.
+- [x] API/UI danh sách, tạo, sửa, tìm kiếm và phân trang nhân viên.
+- [x] Gán/thay vai trò.
+- [x] Khóa tài khoản, thu hồi phiên và bảo vệ quản lý hoạt động cuối.
 
 **Phụ thuộc:** Auth, schema.
 
 ### `docs/integration-and-release`
 
-- [ ] Tổng hợp báo cáo.
-- [ ] hướng dẫn cài.
-- [ ] kịch bản demo.
-- [ ] rà tích hợp.
+- [x] Hướng dẫn cài và tài liệu bàn giao.
+- [x] PostgreSQL migration/seed/e2e và browser smoke trong phạm vi Người 1; xem kết quả thực tế trong handoff.
+- [ ] Tích hợp end-to-end với nghiệp vụ Người 2/3 sau khi các API đó có mặt.
 
 **Phụ thuộc:** Các mốc chức năng.
 
@@ -246,6 +243,14 @@ Người 1 quản lý và điều phối; Người 2 phụ trách kho; Người 
 - [ ] đối chiếu số.
 
 **Phụ thuộc:** Hóa đơn hoàn tất.
+
+### `feat/inventory-movement-report`
+
+- [ ] Thiết kế báo cáo nhập–xuất–tồn theo transaction đã xác nhận/duyệt.
+- [ ] Người 3 phối hợp Người 2 để thống nhất nguồn nhập, xuất và điều chỉnh tồn.
+- [ ] API/UI/báo cáo chưa triển khai trong đợt Người 1.
+
+**Phụ thuộc:** Inventory core, goods receipts, sales checkout và stocktakes.
 
 ### `docs/sales-workflows`
 

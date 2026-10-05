@@ -21,11 +21,36 @@ export function validateEnvironment(config: Environment) {
     throw new Error('APP_TIMEZONE phải là Asia/Ho_Chi_Minh theo D16.');
   }
 
+  const nodeEnv = String(config.NODE_ENV ?? 'development');
+  if (!['development', 'test', 'production'].includes(nodeEnv)) {
+    throw new Error('NODE_ENV phải là development, test hoặc production.');
+  }
+
+  const configuredOrigin = requireString(config, 'FRONTEND_ORIGIN');
+  let frontendOrigin: URL;
+  try {
+    frontendOrigin = new URL(configuredOrigin);
+  } catch {
+    throw new Error('FRONTEND_ORIGIN phải là một origin HTTP/HTTPS hợp lệ.');
+  }
+  if (
+    !['http:', 'https:'].includes(frontendOrigin.protocol) ||
+    !frontendOrigin.hostname ||
+    frontendOrigin.username ||
+    frontendOrigin.password ||
+    !['', '/'].includes(frontendOrigin.pathname) ||
+    frontendOrigin.search ||
+    frontendOrigin.hash
+  ) {
+    throw new Error('FRONTEND_ORIGIN phải là một origin HTTP/HTTPS hợp lệ.');
+  }
+
   return {
     ...config,
+    NODE_ENV: nodeEnv,
     PORT: port,
     DATABASE_URL: requireString(config, 'DATABASE_URL'),
-    FRONTEND_ORIGIN: requireString(config, 'FRONTEND_ORIGIN'),
+    FRONTEND_ORIGIN: frontendOrigin.origin,
     APP_TIMEZONE: timezone,
   };
 }

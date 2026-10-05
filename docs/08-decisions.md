@@ -2,7 +2,9 @@
 
 Ngày tổng hợp: 30/09/2026. “Đã chốt” phản ánh phạm vi/công nghệ đã được xác nhận; “Đề xuất” chưa phải lựa chọn cuối cùng.
 
-## Đã chốt
+## Đã chốt trước đó
+
+D01–D20 là các quyết định nhóm đã ghi nhận trong nhật ký 30/09/2026.
 
 | Mã | Quyết định |
 |---|---|
@@ -24,29 +26,46 @@ Ngày tổng hợp: 30/09/2026. “Đã chốt” phản ánh phạm vi/công ng
 | D16 | Chứng từ phân biệt thời gian tạo, cập nhật, hoàn tất bằng `TIMESTAMPTZ`. Báo cáo giao dịch hoàn tất dùng thời điểm hoàn tất và xác định ngày theo `Asia/Ho_Chi_Minh`. |
 | D17 | Chi tiết phiếu nhập nháp lưu thuốc, số lô và hạn dùng dự kiến nhưng chưa tạo tồn. Khi xác nhận, tìm hoặc tạo lô theo bộ ba này, gắn chi tiết với lô và tăng tồn trong cùng transaction. |
 | D18 | Một repository gồm `frontend/`, `backend/`, `docs/`; dùng npm và lưu `package-lock.json` riêng cho hai ứng dụng. Frontend tổ chức theo App Router/feature, backend theo NestJS module; không có Git repository lồng. |
-| D19 | Bộ khung dùng prefix `/api/v1`, tài nguyên tiếng Anh và JSON camelCase. Health API là API hạ tầng; các API nghiệp vụ trong tài liệu 04 vẫn cần review trước khi triển khai. |
+| D19 | API dùng prefix `/api/v1`, tài nguyên tiếng Anh và JSON camelCase. Health API là API hạ tầng; các API nghiệp vụ trong tài liệu 04 vẫn cần review trước khi triển khai. |
 | D20 | Phiên bản bộ khung: Next.js 16.3.7, React 19.2.8, NestJS 12.1.1, Prisma 6.12.0, PostgreSQL image `17-alpine`, npm 11.9.0. Yêu cầu Node.js `^22.22.3` hoặc `>=24.15.0`; máy khởi tạo dùng 24.14.0 và có cảnh báo engine dù build thành công. |
-| D21 | Bộ khung dùng CSS thuần, chưa chọn thư viện UI. Xác thực/phiên chưa triển khai và vẫn thuộc task riêng; không tự mặc định token hoặc session. |
+
+## Quyết định áp dụng trong lần triển khai của Người 1
+
+Các quyết định dưới đây là mặc định do **Người 1 giao triển khai theo prompt ngày 05/10/2026**. Nguồn này không đại diện cho một cuộc họp hoặc phê duyệt của cả nhóm.
+
+| Mã | Quyết định |
+|---|---|
+| D21 | Bộ khung dùng CSS thuần; tiếp tục dùng CSS hiện có. |
+| D22 | Khóa chính dùng Prisma `Int` tự tăng; version tồn dùng `BigInt`. Model PascalCase/field camelCase ánh xạ bảng tiếng Việt viết hoa và cột snake_case theo thiết kế. |
+| D23 | Tiền VND dùng `Decimal(14,2)` trong CSDL và chuỗi thập phân tại API; khi cần tính, làm tròn half-up 2 chữ số, không tính tiền bằng JavaScript `number`. |
+| D24 | Ngày thuần dùng `DATE`; timestamp dùng `TIMESTAMPTZ(3)`. Ngày nghiệp vụ theo `Asia/Ho_Chi_Minh`. |
+| D25 | Xác thực dùng cookie `pharmacy_session` HttpOnly, token ngẫu nhiên 32 byte; PostgreSQL chỉ lưu SHA-256 token. Phiên cố định 8 giờ, không gia hạn/refresh. |
+| D26 | Mật khẩu dùng `node:crypto` scrypt bất đồng bộ với N=131072, r=8, p=1, maxmem=256 MiB, khóa 64 byte và salt ngẫu nhiên tối thiểu 16 byte. |
+| D27 | Chỉ có vai trò `BAN_THUOC`, `QUAN_LY_KHO`, `QUAN_LY`; quyền là hợp các vai trò được gán. `QUAN_LY` không tự có quyền kho/bán. |
+| D28 | Đơn thuốc giữ tên/hàm lượng/đơn vị nguyên bản, liên kết thuốc tùy chọn; lưu nhân viên và thời điểm kiểm tra. |
+| D29 | Đơn thuốc có quan hệ lịch sử 1–N với hóa đơn; partial unique chỉ cho phép tối đa một hóa đơn chưa hủy trên một đơn. Hóa đơn nháp hủy giữ liên kết và có thể tạo hóa đơn mới; hóa đơn hoàn tất không hủy trong bản đầu. |
+| D30 | Chi tiết kiểm kê lưu snapshot số lượng/version/thời điểm trước khi đếm; `actualQuantity=NULL` nghĩa là chưa đếm, 0 là số đếm hợp lệ. |
+| D31 | Local/demo dùng một backend, frontend/backend cùng site; triển khai cross-site production chưa thuộc phạm vi. Cookie production cần HTTPS cùng site. |
+
+Nguồn và ngày của D21–D31: Người 1 giao triển khai theo prompt, 05/10/2026.
 
 ## Đề xuất cần nhóm xác nhận
 
-| Mã | Nội dung | Người điều phối |
-|---|---|---|
-| P04 | Nội dung đơn lưu nguyên văn, ánh xạ ma_thuoc tùy chọn. | Người 1 + Người 3 |
+P04 về nội dung đơn nguyên bản/liên kết thuốc tùy chọn đã được chốt cho lần triển khai này tại D28; không đại diện quyết định của cả nhóm.
 
 ## Còn mở trước code phụ thuộc
 
-- [ ] Cookie session hay token, cách logout và khóa phiên: ____________________
-- [ ] Thư viện giao diện: ____________________
+- [x] Cookie session hay token, cách logout và khóa phiên: D25.
+- [x] Thư viện giao diện: tiếp tục CSS thuần theo D21.
 - [ ] Cách chia sẻ kiểu/hợp đồng API giữa frontend và backend (OpenAPI sinh kiểu hay package contracts): ____________________
-- [ ] Kiểu ID Prisma/PostgreSQL (`Int` hay `BigInt`) và quy ước tên bảng/cột vật lý: ____________________
-- [ ] Số chữ số thập phân, tiền tệ và quy tắc làm tròn giá/tổng: ____________________
+- [x] Kiểu ID Prisma/PostgreSQL và tên vật lý: D22.
+- [x] Precision, tiền tệ và quy tắc làm tròn: D23.
 - [ ] Ngưỡng cảnh báo gần hết hạn và quy ước hết hạn theo ngày: ____________________
-- [ ] Đơn gắn hóa đơn nháp đã hủy có được dùng lại không: ____________________
+- [x] Đơn gắn hóa đơn nháp đã hủy có được dùng lại không: có, theo D29.
 - [ ] Thu tiền trước/sau hoàn tất; xử lý khách đổi ý trước giao dịch: ____________________
 - [ ] Chính sách chọn lô khi bán (đề xuất FEFO; cách xử lý các lô cùng hạn): ____________________
 - [ ] Có cần liên kết từng dòng hóa đơn với dòng đơn thuốc để đối chiếu hay chỉ kiểm tra ở service: ____________________
 - [ ] Quy tắc vô hiệu hóa lần kiểm tra đơn sau khi sửa nội dung: ____________________
 - [ ] Ngày nộp, tên thành viên và thời hạn từng mốc: ____________________
 
-AI được chuẩn bị công việc độc lập nhưng không được tự coi ô còn trống là quyết định đã được nhóm phê duyệt. Khi chốt, ghi người quyết định, ngày và lý do; cập nhật tài liệu/API/schema liên quan.
+Các mục đã đánh dấu được áp dụng theo chỉ đạo Người 1 ngày 05/10/2026; không hàm ý cả nhóm đã họp hoặc duyệt. Những mục còn trống tiếp tục mở; không tự chốt khi làm nghiệp vụ của Người 2/3.

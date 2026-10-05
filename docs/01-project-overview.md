@@ -34,11 +34,13 @@ Tư vấn tại quầy không tạo ra đơn kê thuốc. Phần mềm không t�
 - Prisma: ORM; cấu trúc cơ sở dữ liệu được đồng bộ bằng migration và dữ liệu mẫu dùng chung.
 - Một repository có frontend/, backend/, docs/.
 - Backend chia module auth, users, roles, medicines, suppliers, inventory, goods-receipts, stocktakes, customers, prescriptions, sales, reports.
+- Auth/users/roles dùng PostgreSQL session cookie: token ngẫu nhiên nằm trong cookie HttpOnly, CSDL chỉ lưu SHA-256 hash; backend kiểm tra trạng thái account/employee và roles từ CSDL mỗi request. Origin/Referer được xác thực cho request ghi.
+- Auth shell và trang quản lý nhân viên đã dùng API thật; các màn hình nghiệp vụ khác giữ trạng thái “Đang phát triển”.
 
 ## Kết quả bản đầu
 
 Đăng nhập → tạo thuốc/nhà cung cấp → nhập lô → bán thuốc → trừ tồn → kiểm kê và duyệt → xem báo cáo. Kèm sơ đồ, thiết kế CSDL và tài liệu triển khai trong báo cáo môn học.
 
-## Điều chưa được xem là đã chốt
+## Các điểm nghiệp vụ còn mở
 
-Quy ước hết hạn trong ngày nghiệp vụ, cơ chế thanh toán và hủy trước hoàn tất, bảo mật phiên và phiên bản công nghệ cần được ghi quyết định trước khi triển khai phần liên quan.
+FEFO/tie-break, ngưỡng và thời điểm hết hạn trong ngày, thời điểm thu tiền, đối chiếu dòng bán–đơn và quy tắc sửa đơn đã kiểm tra vẫn để thành viên sở hữu nghiệp vụ chốt trước khi triển khai phần liên quan. Quyết định session, ID, tiền và partial unique được ghi trong `docs/08-decisions.md` theo chỉ đạo triển khai của Người 1; điều này không hàm ý cả nhóm đã họp/duyệt.

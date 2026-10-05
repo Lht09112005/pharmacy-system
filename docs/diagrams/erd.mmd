@@ -1,28 +1,69 @@
 erDiagram
     NHAN_VIEN ||--o| TAI_KHOAN : "so huu"
-    TAI_KHOAN ||--|{ TAI_KHOAN_VAI_TRO : "duoc gan"
+    TAI_KHOAN ||--o{ TAI_KHOAN_VAI_TRO : "duoc gan"
     VAI_TRO ||--o{ TAI_KHOAN_VAI_TRO : "phan quyen"
-    THUOC ||--o{ LO_THUOC : "co"
+    TAI_KHOAN ||--o{ PHIEN_DANG_NHAP : "co phien"
+    THUOC ||--o{ LO_THUOC : "co lo"
     NHA_CUNG_CAP ||--o{ PHIEU_NHAP : "cung cap"
     NHAN_VIEN ||--o{ PHIEU_NHAP : "lap"
     PHIEU_NHAP ||--o{ CT_PHIEU_NHAP : "gom"
     THUOC ||--o{ CT_PHIEU_NHAP : "du kien nhap"
-    LO_THUOC o|--o{ CT_PHIEU_NHAP : "gan khi xac nhan"
+    LO_THUOC o|--o{ CT_PHIEU_NHAP : "gan khi hoan tat"
     DON_THUOC ||--o{ CT_DON_THUOC : "gom"
-    THUOC o|--o{ CT_DON_THUOC : "anh xa"
-    DON_THUOC o|--o| HOA_DON : "lien ket"
+    THUOC o|--o{ CT_DON_THUOC : "anh xa tuy chon"
     NHAN_VIEN o|--o{ DON_THUOC : "kiem tra"
-    KHACH_HANG o|--o{ HOA_DON : "mua"
+    DON_THUOC o|--o{ HOA_DON : "lich su hoa don"
     NHAN_VIEN ||--o{ HOA_DON : "lap"
+    KHACH_HANG o|--o{ HOA_DON : "mua"
     HOA_DON ||--o{ CT_HOA_DON : "gom"
     THUOC ||--o{ CT_HOA_DON : "duoc ban"
     CT_HOA_DON ||--o{ CT_XUAT_LO : "phan bo"
     LO_THUOC ||--o{ CT_XUAT_LO : "xuat"
-    PHIEU_KIEM_KE ||--o{ CT_KIEM_KE : "gom"
-    LO_THUOC ||--o{ CT_KIEM_KE : "duoc kiem"
     NHAN_VIEN ||--o{ PHIEU_KIEM_KE : "lap"
     NHAN_VIEN o|--o{ PHIEU_KIEM_KE : "duyet"
+    PHIEU_KIEM_KE ||--o{ CT_KIEM_KE : "gom"
+    LO_THUOC ||--o{ CT_KIEM_KE : "snapshot"
 
+    NHAN_VIEN {
+        int ma_nv PK
+        string ho_ten
+        string sdt "nullable"
+        boolean dang_lam_viec
+    }
+    TAI_KHOAN {
+        int ma_tk PK
+        int ma_nv FK "unique"
+        string ten_dang_nhap UK
+        string mat_khau_hash
+        boolean hoat_dong
+    }
+    VAI_TRO {
+        int ma_vai_tro PK
+        enum ten_vai_tro UK "BAN_THUOC QUAN_LY_KHO QUAN_LY"
+    }
+    TAI_KHOAN_VAI_TRO {
+        int ma_tk PK "FK to TAI_KHOAN"
+        int ma_vai_tro PK "FK to VAI_TRO"
+    }
+    PHIEN_DANG_NHAP {
+        int ma_phien PK
+        int ma_tk FK
+        string token_hash UK "SHA-256 hex only"
+        timestamptz tao_luc
+        timestamptz het_han_luc
+    }
+    THUOC {
+        int ma_thuoc PK
+        string ten_thuoc
+        string hoat_chat "nullable"
+        string ham_luong "nullable"
+        string dang_bao_che "nullable"
+        string don_vi_tinh
+        decimal gia_ban
+        boolean can_don
+        int nguong_canh_bao
+        boolean dang_kinh_doanh
+    }
     LO_THUOC {
         int ma_lo PK
         int ma_thuoc FK
@@ -31,12 +72,22 @@ erDiagram
         int so_luong_ton
         bigint version
     }
+    NHA_CUNG_CAP {
+        int ma_ncc PK
+        string ten_ncc
+        string sdt "nullable"
+        string dia_chi "nullable"
+        boolean hoat_dong
+    }
     PHIEU_NHAP {
         int ma_pn PK
+        int ma_ncc FK
+        int ma_nv FK
         timestamptz tao_luc
         timestamptz cap_nhat_luc
         timestamptz hoan_tat_luc "nullable"
-        string trang_thai
+        decimal tong_tien
+        enum trang_thai
     }
     CT_PHIEU_NHAP {
         int ma_ct_nhap PK
@@ -48,25 +99,75 @@ erDiagram
         int so_luong
         decimal don_gia_nhap
     }
+    KHACH_HANG {
+        int ma_kh PK
+        string ho_ten
+        string sdt "nullable"
+    }
+    DON_THUOC {
+        int ma_don PK
+        date ngay_ke
+        string nguoi_ke
+        string nguoi_benh
+        string nguoi_mua "nullable"
+        string anh_don "nullable"
+        int ma_nv_kiem_tra FK "nullable"
+        timestamptz luc_kiem_tra "nullable"
+    }
+    CT_DON_THUOC {
+        int ma_ct_don PK
+        int ma_don FK
+        int ma_thuoc FK "nullable"
+        string ten_thuoc_tren_don
+        string ham_luong_tren_don "nullable"
+        string don_vi_tren_don
+        int so_luong_ke
+        string huong_dan "nullable"
+    }
     HOA_DON {
         int ma_hd PK
-        int ma_don FK "nullable"
+        int ma_nv FK
+        int ma_kh FK "nullable"
+        int ma_don FK "nullable partial unique when not canceled"
         timestamptz tao_luc
         timestamptz cap_nhat_luc
         timestamptz hoan_tat_luc "nullable"
-        string trang_thai
+        string ghi_chu_tu_van "nullable"
+        decimal tong_tien
+        enum trang_thai
+    }
+    CT_HOA_DON {
+        int ma_ct_ban PK
+        int ma_hd FK
+        int ma_thuoc FK
+        int so_luong
+        decimal don_gia_ban
+    }
+    CT_XUAT_LO {
+        int ma_ct_xuat PK
+        int ma_ct_ban FK
+        int ma_lo FK
+        int so_luong_xuat
     }
     PHIEU_KIEM_KE {
         int ma_kk PK
+        int ma_nguoi_lap FK
+        int ma_nguoi_duyet FK "nullable"
         timestamptz tao_luc
         timestamptz cap_nhat_luc
         timestamptz hoan_tat_luc "nullable"
-        string trang_thai
+        enum trang_thai
     }
     CT_KIEM_KE {
         int ma_ct_kk PK
+        int ma_kk FK
         int ma_lo FK
-        bigint version_ghi_nhan
         int so_luong_he_thong
-        int so_luong_thuc_te
+        bigint version_ghi_nhan
+        timestamptz ghi_nhan_luc
+        int so_luong_thuc_te "nullable until counted"
+        string ly_do "nullable"
     }
+
+%% Prescription-to-sale history is 1:N; the migration partial unique index permits
+%% at most one linked sale whose status is not DA_HUY. Canceled drafts retain the FK.

@@ -11,3 +11,302 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum RoleCode {
+  BAN_THUOC
+  QUAN_LY_KHO
+  QUAN_LY
+
+  @@map("MA_VAI_TRO")
+}
+
+enum DocumentStatus {
+  NHAP
+  HOAN_TAT
+  DA_HUY
+
+  @@map("TRANG_THAI_CHUNG_TU")
+}
+
+enum StocktakeStatus {
+  NHAP
+  CHO_DUYET
+  DA_DUYET
+  KIEM_TRA_LAI
+
+  @@map("TRANG_THAI_KIEM_KE")
+}
+
+model Employee {
+  id                    Int            @id @default(autoincrement()) @map("ma_nv")
+  name                  String         @map("ho_ten") @db.VarChar(100)
+  phone                 String?        @map("sdt") @db.VarChar(20)
+  isWorking             Boolean        @default(true) @map("dang_lam_viec")
+  account               Account?
+  goodsReceipts         GoodsReceipt[]
+  sales                 Sale[]
+  reviewedPrescriptions Prescription[] @relation("PrescriptionReviewer")
+  createdStocktakes     Stocktake[]    @relation("StocktakeCreator")
+  approvedStocktakes    Stocktake[]    @relation("StocktakeApprover")
+
+  @@map("NHAN_VIEN")
+}
+
+model Account {
+  id           Int           @id @default(autoincrement()) @map("ma_tk")
+  employeeId   Int           @unique(map: "TAI_KHOAN_ma_nv_key") @map("ma_nv")
+  username     String        @unique(map: "TAI_KHOAN_ten_dang_nhap_key") @map("ten_dang_nhap") @db.VarChar(50)
+  passwordHash String        @map("mat_khau_hash") @db.VarChar(255)
+  isActive     Boolean       @default(true) @map("hoat_dong")
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  roles        AccountRole[]
+  sessions     AuthSession[]
+
+  @@map("TAI_KHOAN")
+}
+
+model Role {
+  id       Int           @id @default(autoincrement()) @map("ma_vai_tro")
+  code     RoleCode      @unique(map: "VAI_TRO_ten_vai_tro_key") @map("ten_vai_tro")
+  accounts AccountRole[]
+
+  @@map("VAI_TRO")
+}
+
+model AccountRole {
+  accountId Int     @map("ma_tk")
+  roleId    Int     @map("ma_vai_tro")
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  role      Role    @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([accountId, roleId], map: "TAI_KHOAN_VAI_TRO_pkey")
+  @@index([roleId], map: "TAI_KHOAN_VAI_TRO_ma_vai_tro_idx")
+  @@map("TAI_KHOAN_VAI_TRO")
+}
+
+model Medicine {
+  id                   Int                @id @default(autoincrement()) @map("ma_thuoc")
+  name                 String             @map("ten_thuoc") @db.VarChar(200)
+  activeIngredient     String?            @map("hoat_chat") @db.VarChar(200)
+  strength             String?            @map("ham_luong") @db.VarChar(100)
+  dosageForm           String?            @map("dang_bao_che") @db.VarChar(100)
+  unit                 String             @map("don_vi_tinh") @db.VarChar(50)
+  sellingPrice         Decimal            @map("gia_ban") @db.Decimal(14, 2)
+  prescriptionRequired Boolean            @map("can_don")
+  lowStockThreshold    Int                @map("nguong_canh_bao")
+  isActive             Boolean            @default(true) @map("dang_kinh_doanh")
+  lots                 MedicineLot[]
+  goodsReceiptItems    GoodsReceiptItem[]
+  prescriptionItems    PrescriptionItem[]
+  saleItems            SaleItem[]
+
+  @@map("THUOC")
+}
+
+model MedicineLot {
+  id             Int                 @id @default(autoincrement()) @map("ma_lo")
+  medicineId     Int                 @map("ma_thuoc")
+  batchNumber    String              @map("so_lo") @db.VarChar(100)
+  expiryDate     DateTime            @map("han_su_dung") @db.Date
+  quantity       Int                 @default(0) @map("so_luong_ton")
+  version        BigInt              @default(0) @map("version")
+  medicine       Medicine            @relation(fields: [medicineId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  receiptItems   GoodsReceiptItem[]
+  allocations    SaleLotAllocation[]
+  stocktakeItems StocktakeItem[]
+
+  @@unique([medicineId, batchNumber, expiryDate], map: "LO_THUOC_ma_thuoc_so_lo_han_su_dung_key")
+  @@index([medicineId, expiryDate], map: "LO_THUOC_ma_thuoc_han_su_dung_idx")
+  @@map("LO_THUOC")
+}
+
+model Supplier {
+  id       Int            @id @default(autoincrement()) @map("ma_ncc")
+  name     String         @map("ten_ncc") @db.VarChar(200)
+  phone    String?        @map("sdt") @db.VarChar(20)
+  address  String?        @map("dia_chi") @db.VarChar(255)
+  isActive Boolean        @default(true) @map("hoat_dong")
+  receipts GoodsReceipt[]
+
+  @@map("NHA_CUNG_CAP")
+}
+
+model GoodsReceipt {
+  id          Int                @id @default(autoincrement()) @map("ma_pn")
+  supplierId  Int                @map("ma_ncc")
+  employeeId  Int                @map("ma_nv")
+  createdAt   DateTime           @default(now()) @map("tao_luc") @db.Timestamptz(3)
+  updatedAt   DateTime           @updatedAt @map("cap_nhat_luc") @db.Timestamptz(3)
+  completedAt DateTime?          @map("hoan_tat_luc") @db.Timestamptz(3)
+  total       Decimal            @default(0) @map("tong_tien") @db.Decimal(14, 2)
+  status      DocumentStatus     @default(NHAP) @map("trang_thai")
+  supplier    Supplier           @relation(fields: [supplierId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  employee    Employee           @relation(fields: [employeeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  items       GoodsReceiptItem[]
+
+  @@index([supplierId], map: "PHIEU_NHAP_ma_ncc_idx")
+  @@index([employeeId], map: "PHIEU_NHAP_ma_nv_idx")
+  @@index([status, completedAt], map: "PHIEU_NHAP_trang_thai_hoan_tat_luc_idx")
+  @@map("PHIEU_NHAP")
+}
+
+model GoodsReceiptItem {
+  id                 Int          @id @default(autoincrement()) @map("ma_ct_nhap")
+  goodsReceiptId     Int          @map("ma_pn")
+  medicineId         Int          @map("ma_thuoc")
+  plannedBatchNumber String       @map("so_lo_du_kien") @db.VarChar(100)
+  plannedExpiryDate  DateTime     @map("han_su_dung_du_kien") @db.Date
+  lotId              Int?         @map("ma_lo")
+  quantity           Int          @map("so_luong")
+  unitCost           Decimal      @map("don_gia_nhap") @db.Decimal(14, 2)
+  goodsReceipt       GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  medicine           Medicine     @relation(fields: [medicineId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lot                MedicineLot? @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([goodsReceiptId], map: "CT_PHIEU_NHAP_ma_pn_idx")
+  @@index([medicineId], map: "CT_PHIEU_NHAP_ma_thuoc_idx")
+  @@index([lotId], map: "CT_PHIEU_NHAP_ma_lo_idx")
+  @@map("CT_PHIEU_NHAP")
+}
+
+model Customer {
+  id    Int     @id @default(autoincrement()) @map("ma_kh")
+  name  String  @map("ho_ten") @db.VarChar(100)
+  phone String? @map("sdt") @db.VarChar(20)
+  sales Sale[]
+
+  @@map("KHACH_HANG")
+}
+
+model Prescription {
+  id                   Int                @id @default(autoincrement()) @map("ma_don")
+  prescribedOn         DateTime           @map("ngay_ke") @db.Date
+  prescriber           String             @map("nguoi_ke") @db.VarChar(150)
+  patientInfo          String             @map("nguoi_benh") @db.VarChar(255)
+  purchaserInfo        String?            @map("nguoi_mua") @db.VarChar(255)
+  imageUrl             String?            @map("anh_don") @db.VarChar(500)
+  reviewedByEmployeeId Int?               @map("ma_nv_kiem_tra")
+  reviewedAt           DateTime?          @map("luc_kiem_tra") @db.Timestamptz(3)
+  reviewer             Employee?          @relation("PrescriptionReviewer", fields: [reviewedByEmployeeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  items                PrescriptionItem[]
+  sales                Sale[]
+
+  @@index([reviewedByEmployeeId], map: "DON_THUOC_ma_nv_kiem_tra_idx")
+  @@map("DON_THUOC")
+}
+
+model PrescriptionItem {
+  id                 Int          @id @default(autoincrement()) @map("ma_ct_don")
+  prescriptionId     Int          @map("ma_don")
+  medicineId         Int?         @map("ma_thuoc")
+  originalName       String       @map("ten_thuoc_tren_don") @db.VarChar(200)
+  originalStrength   String?      @map("ham_luong_tren_don") @db.VarChar(100)
+  originalUnit       String       @map("don_vi_tren_don") @db.VarChar(50)
+  prescribedQuantity Int          @map("so_luong_ke")
+  directions         String?      @map("huong_dan") @db.VarChar(255)
+  prescription       Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  medicine           Medicine?    @relation(fields: [medicineId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([prescriptionId], map: "CT_DON_THUOC_ma_don_idx")
+  @@index([medicineId], map: "CT_DON_THUOC_ma_thuoc_idx")
+  @@map("CT_DON_THUOC")
+}
+
+model Sale {
+  id               Int            @id @default(autoincrement()) @map("ma_hd")
+  employeeId       Int            @map("ma_nv")
+  customerId       Int?           @map("ma_kh")
+  prescriptionId   Int?           @map("ma_don")
+  createdAt        DateTime       @default(now()) @map("tao_luc") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("cap_nhat_luc") @db.Timestamptz(3)
+  completedAt      DateTime?      @map("hoan_tat_luc") @db.Timestamptz(3)
+  consultationNote String?        @map("ghi_chu_tu_van") @db.Text
+  total            Decimal        @default(0) @map("tong_tien") @db.Decimal(14, 2)
+  status           DocumentStatus @default(NHAP) @map("trang_thai")
+  employee         Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  customer         Customer?      @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  prescription     Prescription?  @relation(fields: [prescriptionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  items            SaleItem[]
+
+  @@index([employeeId], map: "HOA_DON_ma_nv_idx")
+  @@index([customerId], map: "HOA_DON_ma_kh_idx")
+  @@index([prescriptionId], map: "HOA_DON_ma_don_idx")
+  @@index([status, completedAt], map: "HOA_DON_trang_thai_hoan_tat_luc_idx")
+  @@map("HOA_DON")
+}
+
+model SaleItem {
+  id          Int                 @id @default(autoincrement()) @map("ma_ct_ban")
+  saleId      Int                 @map("ma_hd")
+  medicineId  Int                 @map("ma_thuoc")
+  quantity    Int                 @map("so_luong")
+  unitPrice   Decimal             @map("don_gia_ban") @db.Decimal(14, 2)
+  sale        Sale                @relation(fields: [saleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  medicine    Medicine            @relation(fields: [medicineId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  allocations SaleLotAllocation[]
+
+  @@index([saleId], map: "CT_HOA_DON_ma_hd_idx")
+  @@index([medicineId], map: "CT_HOA_DON_ma_thuoc_idx")
+  @@map("CT_HOA_DON")
+}
+
+model SaleLotAllocation {
+  id         Int         @id @default(autoincrement()) @map("ma_ct_xuat")
+  saleItemId Int         @map("ma_ct_ban")
+  lotId      Int         @map("ma_lo")
+  quantity   Int         @map("so_luong_xuat")
+  saleItem   SaleItem    @relation(fields: [saleItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lot        MedicineLot @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([saleItemId, lotId], map: "CT_XUAT_LO_ma_ct_ban_ma_lo_key")
+  @@index([lotId], map: "CT_XUAT_LO_ma_lo_idx")
+  @@map("CT_XUAT_LO")
+}
+
+model Stocktake {
+  id                   Int             @id @default(autoincrement()) @map("ma_kk")
+  createdByEmployeeId  Int             @map("ma_nguoi_lap")
+  approvedByEmployeeId Int?            @map("ma_nguoi_duyet")
+  createdAt            DateTime        @default(now()) @map("tao_luc") @db.Timestamptz(3)
+  updatedAt            DateTime        @updatedAt @map("cap_nhat_luc") @db.Timestamptz(3)
+  completedAt          DateTime?       @map("hoan_tat_luc") @db.Timestamptz(3)
+  status               StocktakeStatus @default(NHAP) @map("trang_thai")
+  creator              Employee        @relation("StocktakeCreator", fields: [createdByEmployeeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  approver             Employee?       @relation("StocktakeApprover", fields: [approvedByEmployeeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  items                StocktakeItem[]
+
+  @@index([createdByEmployeeId], map: "PHIEU_KIEM_KE_ma_nguoi_lap_idx")
+  @@index([approvedByEmployeeId], map: "PHIEU_KIEM_KE_ma_nguoi_duyet_idx")
+  @@index([status, completedAt], map: "PHIEU_KIEM_KE_trang_thai_hoan_tat_luc_idx")
+  @@map("PHIEU_KIEM_KE")
+}
+
+model StocktakeItem {
+  id              Int         @id @default(autoincrement()) @map("ma_ct_kk")
+  stocktakeId     Int         @map("ma_kk")
+  lotId           Int         @map("ma_lo")
+  systemQuantity  Int         @map("so_luong_he_thong")
+  recordedVersion BigInt      @map("version_ghi_nhan")
+  recordedAt      DateTime    @map("ghi_nhan_luc") @db.Timestamptz(3)
+  actualQuantity  Int?        @map("so_luong_thuc_te")
+  reason          String?     @map("ly_do") @db.VarChar(255)
+  stocktake       Stocktake   @relation(fields: [stocktakeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lot             MedicineLot @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([stocktakeId, lotId], map: "CT_KIEM_KE_ma_kk_ma_lo_key")
+  @@index([lotId], map: "CT_KIEM_KE_ma_lo_idx")
+  @@map("CT_KIEM_KE")
+}
+
+model AuthSession {
+  id        Int      @id @default(autoincrement()) @map("ma_phien")
+  accountId Int      @map("ma_tk")
+  tokenHash String   @unique(map: "PHIEN_DANG_NHAP_token_hash_key") @map("token_hash") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("tao_luc") @db.Timestamptz(3)
+  expiresAt DateTime @map("het_han_luc") @db.Timestamptz(3)
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([accountId], map: "PHIEN_DANG_NHAP_ma_tk_idx")
+  @@index([expiresAt], map: "PHIEN_DANG_NHAP_het_han_luc_idx")
+  @@map("PHIEN_DANG_NHAP")
+}

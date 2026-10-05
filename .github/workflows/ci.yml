@@ -21,10 +21,26 @@ jobs:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: postgresql://pharmacy:pharmacy_ci_password@localhost:5432/pharmacy?schema=public
+      DATABASE_URL: postgresql://pharmacy:pharmacy_ci_password@localhost:5432/pharmacy_ci?schema=public
+      TEST_DATABASE_URL: postgresql://pharmacy:pharmacy_ci_password@localhost:5432/pharmacy_ci?schema=public
+      NODE_ENV: test
       PORT: 3001
       FRONTEND_ORIGIN: http://localhost:3000
       APP_TIMEZONE: Asia/Ho_Chi_Minh
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: pharmacy_ci
+          POSTGRES_USER: pharmacy
+          POSTGRES_PASSWORD: pharmacy_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pharmacy -d pharmacy_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,6 +60,9 @@ jobs:
 
       - name: Validate Prisma schema
         run: npm run prisma:validate
+
+      - name: Apply migrations to test database
+        run: npm run db:test:migrate
 
       - name: Typecheck
         run: npm run typecheck

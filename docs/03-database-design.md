@@ -1,8 +1,8 @@
 # 03 — Thiết kế cơ sở dữ liệu
 
-Thiết kế logic tham chiếu, chưa phải migration đã triển khai. CSDL dùng PostgreSQL và ORM dùng Prisma. Mỗi thành viên dùng cơ sở dữ liệu cục bộ riêng, áp dụng cùng Prisma migration và seed đã review; không sửa migration đã chia sẻ.
+Schema Prisma và migration PostgreSQL đầu đã được tạo trong `backend/prisma/`; migration cần được áp dụng riêng trên CSDL local/test bằng `prisma migrate deploy`. Mỗi thành viên dùng CSDL cục bộ riêng; không sửa/xóa migration đã chia sẻ.
 
-Quy ước ánh xạ: `INT` là mã nội bộ tự tăng (`INTEGER`/Prisma `Int`); `BIGINT` ánh xạ Prisma `BigInt`; `DATE` dùng PostgreSQL `date`; `TIMESTAMPTZ` dùng `timestamp with time zone` và Prisma `DateTime`. Giá và tổng tiền dùng PostgreSQL `DECIMAL/NUMERIC` và Prisma `Decimal`, không chuyển qua JavaScript `number`; API biểu diễn bằng chuỗi thập phân và backend tự tính tổng. Các kích thước `DECIMAL(12,2)`/`DECIMAL(14,2)` trong bảng dưới là đề xuất ban đầu, chưa chốt precision/scale và quy tắc làm tròn. Timestamp lưu theo thời điểm tuyệt đối; ngày hiển thị/báo cáo được quy đổi theo `Asia/Ho_Chi_Minh`. FK bắt buộc trừ khi ghi `NULL`. Các trạng thái xem tài liệu 02. Các `CHECK` nêu dưới đây phải có trong migration PostgreSQL và vẫn được kiểm tra ở backend; nếu Prisma schema không biểu diễn được đầy đủ thì giữ SQL bổ sung trong migration, không bỏ ràng buộc.
+Quy ước ánh xạ: khóa chính đơn dùng Prisma `Int` tự tăng; `BIGINT` chỉ dùng cho version; bảng nối tài khoản–vai trò dùng khóa ghép. Model PascalCase/field camelCase ánh xạ sang bảng tiếng Việt viết hoa/cột snake_case bằng `@@map`/`@map`. Tiền VND dùng PostgreSQL `DECIMAL(14,2)`/Prisma `Decimal`, API nhận/trả chuỗi thập phân; không tính bằng JavaScript `number`, làm tròn half-up 2 chữ số khi cần. Ngày thuần dùng `DATE`; timestamp dùng `TIMESTAMPTZ(3)`. Ngày nghiệp vụ theo `Asia/Ho_Chi_Minh`. Vai trò và trạng thái chứng từ được ràng buộc bằng PostgreSQL enum. FK bắt buộc trừ khi ghi `NULL`; FK lịch sử dùng `RESTRICT`, riêng bảng vai trò và session cascade theo tài khoản. Các `CHECK` và partial unique không biểu diễn được trong Prisma nằm trong migration SQL.
 
 ## NHAN_VIEN
 
@@ -28,7 +28,7 @@ Quy ước ánh xạ: `INT` là mã nội bộ tự tăng (`INTEGER`/Prisma `Int
 | Cột | Kiểu | Ràng buộc |
 |---|---|---|
 | ma_vai_tro | INT | PK |
-| ten_vai_tro | VARCHAR(30) | UNIQUE |
+| ten_vai_tro | ENUM MA_VAI_TRO | UNIQUE; chỉ `BAN_THUOC`, `QUAN_LY_KHO`, `QUAN_LY` |
 
 ## TAI_KHOAN_VAI_TRO
 
@@ -47,7 +47,7 @@ Quy ước ánh xạ: `INT` là mã nội bộ tự tăng (`INTEGER`/Prisma `Int
 | ham_luong | VARCHAR(100) | NULL |
 | dang_bao_che | VARCHAR(100) | NULL |
 | don_vi_tinh | VARCHAR(50) | bắt buộc |
-| gia_ban | DECIMAL(12,2) | >=0 |
+| gia_ban | DECIMAL(14,2) | >=0 |
 | can_don | BOOLEAN | bắt buộc |
 | nguong_canh_bao | INT | >=0 |
 | dang_kinh_doanh | BOOLEAN | bắt buộc |
@@ -97,7 +97,7 @@ Quy ước ánh xạ: `INT` là mã nội bộ tự tăng (`INTEGER`/Prisma `Int
 | han_su_dung_du_kien | DATE | bắt buộc khi lưu nháp |
 | ma_lo | INT | FK LO_THUOC, NULL khi nháp; gắn khi hoàn tất |
 | so_luong | INT | >0 |
-| don_gia_nhap | DECIMAL(12,2) | >=0 |
+| don_gia_nhap | DECIMAL(14,2) | >=0 |
 
 ## KHACH_HANG
 
@@ -140,7 +140,7 @@ Quy ước ánh xạ: `INT` là mã nội bộ tự tăng (`INTEGER`/Prisma `Int
 | ma_hd | INT | PK |
 | ma_nv | INT | FK NHAN_VIEN |
 | ma_kh | INT | FK KHACH_HANG, NULL |
-| ma_don | INT | FK DON_THUOC, NULL, UNIQUE |
+| ma_don | INT | FK DON_THUOC, NULL; partial unique trên hóa đơn chưa hủy |
 | tao_luc | TIMESTAMPTZ | bắt buộc; thời điểm tạo |
 | cap_nhat_luc | TIMESTAMPTZ | bắt buộc; thời điểm cập nhật gần nhất |
 | hoan_tat_luc | TIMESTAMPTZ | NULL; chỉ ghi khi hoàn tất |
@@ -156,7 +156,7 @@ Quy ước ánh xạ: `INT` là mã nội bộ tự tăng (`INTEGER`/Prisma `Int
 | ma_hd | INT | FK HOA_DON |
 | ma_thuoc | INT | FK THUOC |
 | so_luong | INT | >0 |
-| don_gia_ban | DECIMAL(12,2) | >=0 |
+| don_gia_ban | DECIMAL(14,2) | >=0 |
 
 ## CT_XUAT_LO
 
@@ -189,8 +189,18 @@ Quy ước ánh xạ: `INT` là mã nội bộ tự tăng (`INTEGER`/Prisma `Int
 | so_luong_he_thong | INT | >=0 |
 | version_ghi_nhan | BIGINT | >=0; LO_THUOC.version khi ghi số hệ thống |
 | ghi_nhan_luc | TIMESTAMPTZ | bắt buộc; thời điểm ghi số hệ thống |
-| so_luong_thuc_te | INT | >=0 |
-| ly_do | VARCHAR(255) | bắt buộc khi lệch |
+| so_luong_thuc_te | INT | NULL trước khi đếm; nếu có thì >=0; 0 là số đếm hợp lệ |
+| ly_do | VARCHAR(255) | NULL khi chưa đếm/không lệch; bắt buộc khi đã đếm khác số hệ thống |
+
+## PHIEN_DANG_NHAP
+
+| Cột | Kiểu | Ràng buộc |
+|---|---|---|
+| ma_phien | INT | PK |
+| ma_tk | INT | FK TAI_KHOAN, index; cascade khi tài khoản bị xóa |
+| token_hash | VARCHAR(64) | UNIQUE; đúng 64 ký tự hex, không lưu token nguyên bản |
+| tao_luc | TIMESTAMPTZ(3) | bắt buộc |
+| het_han_luc | TIMESTAMPTZ(3) | bắt buộc; index |
 
 ## Quan hệ và ràng buộc bổ sung
 
@@ -201,11 +211,13 @@ Quy ước ánh xạ: `INT` là mã nội bộ tự tăng (`INTEGER`/Prisma `Int
 - HOA_DON 1–N CT_HOA_DON; mỗi dòng có thể xuất nhiều lô qua CT_XUAT_LO.
 - Tổng xuất của một dòng = số lượng bán; các lô phải thuộc đúng thuốc.
 - DON_THUOC 1–N CT_DON_THUOC. Dòng đơn giữ nguyên tên/hàm lượng/đơn vị ghi trên đơn, FK thuốc tùy chọn.
-- DON_THUOC và HOA_DON là liên kết tùy chọn tối đa một–một: `HOA_DON.ma_don` được NULL nên hóa đơn không kê đơn không cần DON_THUOC; PostgreSQL cho phép nhiều NULL trong UNIQUE nên nhiều hóa đơn không kê đơn vẫn hợp lệ.
+- DON_THUOC và HOA_DON là quan hệ lịch sử 1–N: `HOA_DON.ma_don` nullable; partial unique `HOA_DON_ma_don_chua_huy_key` chỉ áp dụng khi `ma_don IS NOT NULL AND trang_thai <> 'DA_HUY'`. Hóa đơn hủy giữ liên kết lịch sử; có thể tạo hóa đơn mới cùng đơn. Nhiều hóa đơn không kê đơn vẫn hợp lệ.
 - NHAN_VIEN 1–0..1 TAI_KHOAN; tài khoản có nhiều vai trò qua bảng nối.
 - Không dùng giá hiện tại của THUOC để tính lại chứng từ cũ.
 - Chỉ chứng từ hoàn tất mới có dữ liệu xuất thực tế. Hóa đơn nháp không bắt buộc có CT_XUAT_LO.
-- **Đề xuất:** UNIQUE (ma_ct_ban, ma_lo), (ma_kk, ma_lo) để tránh dòng trùng vô ý; cần duyệt cùng schema.
+- UNIQUE (ma_ct_ban, ma_lo) và (ma_kk, ma_lo) đã có trong schema/migration.
+- TAI_KHOAN_VAI_TRO có khóa ghép; role code và trạng thái được ràng buộc bằng enum PostgreSQL.
+- AuthSession chứa token hash SHA-256 và hạn phiên 8 giờ; trạng thái account/employee/roles được đọc lại từ CSDL ở từng request.
 
 ## Bất biến transaction và đồng thời
 
@@ -225,13 +237,12 @@ Các bất biến đã chốt: lưu chứng từ và thay đổi tồn phải c�
 - Dùng `Decimal` xuyên suốt backend và serialize thành chuỗi ở biên API. Tổng tiền do server tính và lưu với cùng quy tắc làm tròn đã chốt.
 - Prisma schema, migration SQL và ERD phải mô tả cùng một quan hệ. Partial unique index, `CHECK` phức tạp hoặc khóa hàng bằng SQL là ngoại lệ có chủ đích và phải được chú thích trong migration/tài liệu.
 
-## Điểm cần hoàn thiện trước migration
+## Bất biến do service của Người 2/3 kiểm tra
 
-- Chọn đơn vị quản lý; so sánh số lượng đơn với lượng bán phải cùng đơn vị.
-- Bán từng phần từ một đơn: bản đầu không hỗ trợ hóa đơn thứ hai.
-- Chính sách hủy nháp đang gắn đơn: nếu được tái sử dụng đơn, cần partial unique index PostgreSQL chỉ áp dụng cho hóa đơn chưa hủy; nếu Prisma schema/phiên bản được chọn không biểu diễn đủ thì ghi SQL có chủ đích trong migration. Nếu không tái sử dụng thì UNIQUE thường trên `ma_don` là đủ.
-- Thay đổi đơn sau khi đã kiểm tra và kiểm tra lại sau chỉnh sửa.
-- Quy tắc làm tròn tiền và precision/scale cụ thể.
-- Schema này chưa có bảng thanh toán/công nợ/hoàn trả; không tự bổ sung khi làm task khác.
+- Tổng lượng xuất lô bằng lượng bán; lô xuất thuộc đúng thuốc; chứng từ hoàn tất có ít nhất một dòng.
+- Version lô tăng cùng mọi thay đổi tồn và được kiểm tra trong transaction khi duyệt kiểm kê.
+- Quy tắc sửa đơn đã kiểm tra và kiểm tra lại sau chỉnh sửa vẫn để mở cho Người 3.
+- FEFO/tie-break, ngưỡng gần hết hạn, đầu/cuối ngày hết hạn và thời điểm thu tiền vẫn để mở cho thành viên phụ trách.
+- Schema không có bảng thanh toán/công nợ/hoàn trả; không tự bổ sung khi làm task khác.
 
 Sơ đồ: xem [ERD](diagrams/erd.mmd). Sơ đồ và từ điển dữ liệu phải được cập nhật cùng migration.
