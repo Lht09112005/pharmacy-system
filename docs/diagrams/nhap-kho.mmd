@@ -1,0 +1,16 @@
+flowchart TD
+    A([Bắt đầu]) --> B[Kiểm tra hàng thực nhận]
+    B --> C[Chọn nhà cung cấp và lập phiếu]
+    C --> D[Nhập thuốc, lô, hạn, số lượng và giá]
+    D --> E{Dữ liệu hợp lệ?}
+    E -- Không --> D
+    E -- Có --> F{Xác nhận nhập?}
+    F -- Chưa --> G[Lưu thông tin lô dự kiến, chưa tạo tồn]
+    F -- Có --> H[Bắt đầu transaction Serializable và tìm hoặc tạo lô theo bộ ba]
+    H --> L[Gắn chi tiết với lô, hoàn tất phiếu và cộng tồn/version]
+    L --> I{Thành công?}
+    I -- Không --> J[Hoàn tác; retry toàn bộ có giới hạn nếu là xung đột]
+    I -- Có --> K[Hoàn tất]
+    G --> Z([Kết thúc])
+    J --> Z
+    K --> Z

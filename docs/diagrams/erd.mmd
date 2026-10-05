@@ -1,0 +1,72 @@
+erDiagram
+    NHAN_VIEN ||--o| TAI_KHOAN : "so huu"
+    TAI_KHOAN ||--|{ TAI_KHOAN_VAI_TRO : "duoc gan"
+    VAI_TRO ||--o{ TAI_KHOAN_VAI_TRO : "phan quyen"
+    THUOC ||--o{ LO_THUOC : "co"
+    NHA_CUNG_CAP ||--o{ PHIEU_NHAP : "cung cap"
+    NHAN_VIEN ||--o{ PHIEU_NHAP : "lap"
+    PHIEU_NHAP ||--o{ CT_PHIEU_NHAP : "gom"
+    THUOC ||--o{ CT_PHIEU_NHAP : "du kien nhap"
+    LO_THUOC o|--o{ CT_PHIEU_NHAP : "gan khi xac nhan"
+    DON_THUOC ||--o{ CT_DON_THUOC : "gom"
+    THUOC o|--o{ CT_DON_THUOC : "anh xa"
+    DON_THUOC o|--o| HOA_DON : "lien ket"
+    NHAN_VIEN o|--o{ DON_THUOC : "kiem tra"
+    KHACH_HANG o|--o{ HOA_DON : "mua"
+    NHAN_VIEN ||--o{ HOA_DON : "lap"
+    HOA_DON ||--o{ CT_HOA_DON : "gom"
+    THUOC ||--o{ CT_HOA_DON : "duoc ban"
+    CT_HOA_DON ||--o{ CT_XUAT_LO : "phan bo"
+    LO_THUOC ||--o{ CT_XUAT_LO : "xuat"
+    PHIEU_KIEM_KE ||--o{ CT_KIEM_KE : "gom"
+    LO_THUOC ||--o{ CT_KIEM_KE : "duoc kiem"
+    NHAN_VIEN ||--o{ PHIEU_KIEM_KE : "lap"
+    NHAN_VIEN o|--o{ PHIEU_KIEM_KE : "duyet"
+
+    LO_THUOC {
+        int ma_lo PK
+        int ma_thuoc FK
+        string so_lo
+        date han_su_dung
+        int so_luong_ton
+        bigint version
+    }
+    PHIEU_NHAP {
+        int ma_pn PK
+        timestamptz tao_luc
+        timestamptz cap_nhat_luc
+        timestamptz hoan_tat_luc "nullable"
+        string trang_thai
+    }
+    CT_PHIEU_NHAP {
+        int ma_ct_nhap PK
+        int ma_pn FK
+        int ma_thuoc FK
+        string so_lo_du_kien
+        date han_su_dung_du_kien
+        int ma_lo FK "nullable khi nhap"
+        int so_luong
+        decimal don_gia_nhap
+    }
+    HOA_DON {
+        int ma_hd PK
+        int ma_don FK "nullable"
+        timestamptz tao_luc
+        timestamptz cap_nhat_luc
+        timestamptz hoan_tat_luc "nullable"
+        string trang_thai
+    }
+    PHIEU_KIEM_KE {
+        int ma_kk PK
+        timestamptz tao_luc
+        timestamptz cap_nhat_luc
+        timestamptz hoan_tat_luc "nullable"
+        string trang_thai
+    }
+    CT_KIEM_KE {
+        int ma_ct_kk PK
+        int ma_lo FK
+        bigint version_ghi_nhan
+        int so_luong_he_thong
+        int so_luong_thuc_te
+    }

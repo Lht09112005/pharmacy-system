@@ -1,0 +1,27 @@
+flowchart TD
+    A([Bắt đầu]) --> B[Tiếp nhận khách]
+    B --> C{Có đơn?}
+    C -- Có --> D[Kiểm tra và ghi nhận đơn]
+    D --> E{Đơn đủ điều kiện?}
+    E -- Không --> F[Làm rõ đơn hoặc hướng dẫn đi khám]
+    E -- Có --> G[Chọn thuốc và số lượng]
+    C -- Không --> H[Tra cứu hoặc tư vấn thuốc không kê đơn]
+    H --> I{Phù hợp?}
+    I -- Không --> F
+    I -- Có --> G
+    G --> J{Đủ tồn còn hạn?}
+    J -- Không --> K[Điều chỉnh hoặc dừng bán]
+    K --> Z([Kết thúc])
+    J -- Có --> L[Xác nhận giao dịch]
+    L --> Q[Bắt đầu transaction Serializable; kiểm tra trạng thái và tồn lại]
+    Q --> R{Nháp hợp lệ và đủ tồn?}
+    R -- Không --> O[Hoàn tác hoặc không đổi dữ liệu; phân loại kết quả]
+    R -- Có --> M[Lưu hóa đơn, phân bổ lô và trừ tồn cùng transaction]
+    M --> N{Thành công?}
+    N -- Không --> O
+    N -- Có --> P[Hóa đơn hoàn tất]
+    O --> T{Xung đột có thể retry và còn lượt?}
+    T -- Có --> Q
+    T -- Không --> Z
+    P --> Z
+    F --> Z
